@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/${DB_NAME:dreambus}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${DB_USER:app}
+    password: ${DB_PASS:apppw}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: Asia/Seoul
+
+
+springdoc:
+  swagger-ui:
+    path: /docs                  # Swagger UI ? http://localhost:8080/api/docs
+  api-docs:
+    path: /v3/api-docs           # OpenAPI JSON
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+    org.springframework.security: info
