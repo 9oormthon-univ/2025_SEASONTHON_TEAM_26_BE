@@ -1,9 +1,43 @@
 package me.nam.dreamdriversserver.domain.user.controller;
 
-import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import me.nam.dreamdriversserver.domain.user.dto.LoginRequestDto;
+import me.nam.dreamdriversserver.domain.user.dto.LoginResponseDto;
+import me.nam.dreamdriversserver.domain.user.dto.RegisterRequestDto;
+import me.nam.dreamdriversserver.domain.user.dto.TokenRefreshRequestDto;
+import me.nam.dreamdriversserver.domain.user.dto.UserResponseDto;
+import me.nam.dreamdriversserver.domain.user.service.UserService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Auth", description = "회원가입/로그인/JWT 토큰 API")
 @RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
 public class UserController {
-    // 사용자 관련 API 엔드포인트 작성 예정
-}
 
+    private final UserService userService;
+
+    @Operation(summary = "회원가입", description = "사용자의 정보를 받아 회원가입 처리")
+    @PostMapping("/register")
+    public ResponseEntity<UserResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
+        UserResponseDto response = userService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(summary = "로그인", description = "아이디/비밀번호 검증 후 액세스/리프레시 토큰 발급")
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto request) {
+        return ResponseEntity.ok(userService.login(request));
+    }
+
+    @Operation(summary = "토큰 재발급", description = "Refresh Token을 검증하고 새로운 Access/Refresh 발급")
+    @PostMapping("/token/refresh")
+    public ResponseEntity<LoginResponseDto> refresh(@Valid @RequestBody TokenRefreshRequestDto request) {
+        return ResponseEntity.ok(userService.refresh(request.getRefreshToken()));
+    }
+}

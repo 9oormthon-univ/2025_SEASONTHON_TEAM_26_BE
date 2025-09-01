@@ -19,7 +19,7 @@ public class Users {
     @Column(name = "user_id")
     private Long userId; // 사용자 ID, PK
 
-    @Column(name = "login_id", nullable = false, length = 255)
+    @Column(name = "login_id", nullable = false, length = 255, unique = true)
     private String loginId; // 사용자 아이디(이메일)
 
     @Column(name = "password", length = 255)
@@ -28,7 +28,7 @@ public class Users {
     @Column(name = "name", nullable = false, length = 100)
     private String name; // 사용자 이름
 
-    @Column(name = "email", nullable = false, length = 255)
+    @Column(name = "email", nullable = false, length = 255, unique = true)
     private String email; // 사용자 이메일
 
     @Column(name = "created_at")
