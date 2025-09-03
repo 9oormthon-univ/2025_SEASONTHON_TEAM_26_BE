@@ -7,11 +7,12 @@ import me.nam.dreamdriversserver.domain.user.entity.Users;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import me.nam.dreamdriversserver.domain.region.entity.Regions;
 
 @Entity
 @Getter
 @Setter
-@Table(name = "Applications")
+@Table(name = "applications")
 public class Applications {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,11 +20,11 @@ public class Applications {
     private Long appId; // 신청 아이디, PK
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "userId", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Users user; // 신청자 (FK)
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "regionId", nullable = false)
+    @JoinColumn(name = "region_id", nullable = false)
     private Regions region; // 신청 지역 (FK)
 
     @Column(name = "name", nullable = false, length = 100)
@@ -44,7 +45,7 @@ public class Applications {
     @Column(name = "desired_program", length = 100)
     private String desiredProgram; // 희망 프로그램
 
-    @Column(name = "serviceDate")
+    @Column(name = "service_date")
     private LocalDate serviceDate; // 서비스 신청 날짜
 
     @Enumerated(EnumType.STRING)
