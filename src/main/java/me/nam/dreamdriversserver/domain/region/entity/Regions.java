@@ -1,13 +1,13 @@
-package me.nam.dreamdriversserver.domain.application.entity;
+package me.nam.dreamdriversserver.domain.region.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import me.nam.dreamdriversserver.domain.application.entity.Applications;
-import me.nam.dreamdriversserver.domain.bus.entity.Buses;
-import me.nam.dreamdriversserver.domain.bus.entity.Stops;
-import me.nam.dreamdriversserver.domain.bus.entity.Course;
 import me.nam.dreamdriversserver.domain.application.entity.CapacityPlan;
+import me.nam.dreamdriversserver.domain.bus.entity.Buses;
+import me.nam.dreamdriversserver.domain.bus.entity.Course;
+import me.nam.dreamdriversserver.domain.bus.entity.Stops;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,7 +17,7 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
-@Table(name = "Regions")
+@Table(name = "regions")
 public class Regions {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
