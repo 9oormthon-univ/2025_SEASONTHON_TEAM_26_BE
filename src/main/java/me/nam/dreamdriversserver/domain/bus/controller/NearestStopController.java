@@ -9,6 +9,8 @@ import me.nam.dreamdriversserver.domain.bus.service.NearestStopService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+import me.nam.dreamdriversserver.common.exception.BadRequestException;
+import me.nam.dreamdriversserver.common.exception.NotFoundException;
 
 /**
  * 가장 가까운 정류장 API 컨트롤러
@@ -53,7 +55,7 @@ public class NearestStopController {
     ) {
         NearestStopResponseDto result = nearestStopService.getNearestStop(lat, lng);
         if (result == null) {
-            return ResponseEntity.status(404).body(new ErrorResponse("NOT_FOUND", "주변 정류장 없음"));
+            throw new NotFoundException("주변 정류장 없음");
         }
         var body = new NearestStopSimpleResponse(
                 new Center(result.getUserLat(), result.getUserLng()),
@@ -75,9 +77,13 @@ public class NearestStopController {
             @PathVariable String stopId
     ) {
         Long id = parseStopId(stopId);
-        if (id == null) return ResponseEntity.status(400).body(new ErrorResponse("BAD_REQUEST", "유효하지 않은 stopId"));
+        if (id == null) {
+            throw new BadRequestException("유효하지 않은 stopId");
+        }
         StopDetailResponseDto dto = nearestStopService.getStopDetail(id);
-        if (dto == null) return ResponseEntity.status(404).body(new ErrorResponse("NOT_FOUND", "정류장 없음"));
+        if (dto == null) {
+            throw new NotFoundException("정류장 없음");
+        }
         var body = new StopDetailSimpleResponse(
                 formatStopId(dto.getStopId()),
                 String.valueOf(dto.getRegionId()),
@@ -121,15 +127,5 @@ public class NearestStopController {
         public double lat;
         public double lng;
         public Center(double lat, double lng) { this.lat = lat; this.lng = lng; }
-    }
-
-    /** 단순 에러 응답 바디 */
-    static class ErrorResponse {
-        public String code;
-        public String message;
-        public ErrorResponse(String code, String message) {
-            this.code = code;
-            this.message = message;
-        }
     }
 }

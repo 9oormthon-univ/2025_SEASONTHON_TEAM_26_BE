@@ -39,7 +39,7 @@ public class UserController {
         return ResponseEntity.ok(userService.refresh(request.getRefreshToken()));
     }
 
-    @PostMapping("/auth/kakao")
+    @PostMapping("/kakao")
     @Operation(summary = "카카오 로그인", description = "카카오 인가 코드로 로그인/가입 처리 후 서비스 토큰 발급")
     public ResponseEntity<KakaoLoginResponseDto> kakaoLogin(@Valid @RequestBody KakaoLoginRequestDto req) {
         KakaoLoginResponseDto res = kakaoAuthService.loginWithCode(req.getCode());
