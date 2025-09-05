@@ -3,12 +3,19 @@ package me.nam.dreamdriversserver.domain.bus.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import me.nam.dreamdriversserver.domain.bus.dto.NearestStopResponseDto;
 import me.nam.dreamdriversserver.domain.bus.dto.StopDetailResponseDto;
 import me.nam.dreamdriversserver.domain.bus.service.NearestStopService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
+import me.nam.dreamdriversserver.common.exception.BadRequestException;
+import me.nam.dreamdriversserver.common.exception.NotFoundException;
 
 /**
  * 가장 가까운 정류장 API 컨트롤러
@@ -41,9 +48,22 @@ public class NearestStopController {
      * 사용자 위치 기준 최단 거리 정류장 조회(요약)
      * @param lat 사용자 위도
      * @param lng 사용자 경도
-     * @return { center:{lat,lng}, stopId, name }
+     * @return {
+     *   center:{lat,lng}, // 정류장 좌표
+     *   stopId, stopname, regionId, regionName,
+     *   distanceMeters, date(YYYY-MM-DD), etaToNextSec, dwellSeconds
+     * }
      */
     @Operation(summary = "가장 가까운 정류장(요약)", description = "사용자 위치 기반 가장 가까운 정류장 요약 정보 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = NearestStopNewResponse.class),
+                            examples = @ExampleObject(name = "NearestStopExample", value = "{\n  \"center\": { \"lat\": 37.4836, \"lng\": 127.0326 },\n  \"stopId\": \"so-002\",\n  \"stopname\": \"서초동도서관\",\n  \"regionId\": \"1001\",\n  \"regionName\": \"서울특별시 서초구\",\n  \"distanceMeters\": 184,\n  \"date\": \"2025-09-05\",\n  \"etaToNextSec\": 320,\n  \"dwellSeconds\": 120\n}"))),
+            @ApiResponse(responseCode = "404", description = "주변 정류장 없음",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = "{ \"code\": \"NOT_FOUND\", \"message\": \"주변 정류장 없음\" }")))
+    })
     @GetMapping("/nearest")
     public ResponseEntity<?> getNearestStop(
             @Parameter(description = "사용자 위도", required = true)
@@ -53,12 +73,21 @@ public class NearestStopController {
     ) {
         NearestStopResponseDto result = nearestStopService.getNearestStop(lat, lng);
         if (result == null) {
-            return ResponseEntity.status(404).body(new ErrorResponse("NOT_FOUND", "주변 정류장 없음"));
+            throw new NotFoundException("주변 정류장 없음");
         }
-        var body = new NearestStopSimpleResponse(
-                new Center(result.getUserLat(), result.getUserLng()),
+        String regionId = result.getRegionId() != null ? String.valueOf(result.getRegionId()) : null;
+        String regionName = result.getRegionName();
+        String date = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).toString(); // YYYY-MM-DD
+        var body = new NearestStopNewResponse(
+                new Center(result.getStopLat(), result.getStopLng()), // 정류장 좌표
                 formatStopId(result.getStopId()),
-                result.getName()
+                result.getName(),
+                regionId,
+                regionName,
+                result.getDistanceMeters(),
+                date,
+                result.getEtaToNextSec(),
+                result.getDwellSeconds()
         );
         return ResponseEntity.ok(body);
     }
@@ -69,49 +98,96 @@ public class NearestStopController {
      * @return { stopId, regionId, name, nextArrivalTime, dwellSeconds }
      */
     @Operation(summary = "정류장 상세", description = "정류장 아이디로 상세 정보 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = StopDetailNewResponse.class),
+                            examples = @ExampleObject(name = "StopDetailExample", value = "{\n  \"center\": { \"lat\": 37.4836, \"lng\": 127.0326 },\n  \"stopId\": \"so-002\",\n  \"stopname\": \"서초동도서관\",\n  \"regionId\": \"1001\",\n  \"regionName\": \"서울특별시 서초구\",\n  \"distanceMeters\": 0,\n  \"date\": \"2025-09-05\",\n  \"etaToNextSec\": null,\n  \"dwellSeconds\": 0\n}"))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = "{ \"code\": \"BAD_REQUEST\", \"message\": \"유효하지 않은 stopId\" }"))),
+            @ApiResponse(responseCode = "404", description = "정류장 없음",
+                    content = @Content(mediaType = "application/json",
+                            examples = @ExampleObject(value = "{ \"code\": \"NOT_FOUND\", \"message\": \"정류장 없음\" }")))
+    })
     @GetMapping("/{stopId}")
     public ResponseEntity<?> getStopDetail(
             @Parameter(description = "정류장 아이디(so-XXX 또는 숫자)", required = true)
-            @PathVariable String stopId
+            @PathVariable String stopId,
+            @Parameter(description = "사용자 위도(선택)") @RequestParam(required = false) Double lat,
+            @Parameter(description = "사용자 경도(선택)") @RequestParam(required = false) Double lng
     ) {
         Long id = parseStopId(stopId);
-        if (id == null) return ResponseEntity.status(400).body(new ErrorResponse("BAD_REQUEST", "유효하지 않은 stopId"));
-        StopDetailResponseDto dto = nearestStopService.getStopDetail(id);
-        if (dto == null) return ResponseEntity.status(404).body(new ErrorResponse("NOT_FOUND", "정류장 없음"));
-        var body = new StopDetailSimpleResponse(
+        if (id == null) {
+            throw new BadRequestException("유효하지 않은 stopId");
+        }
+        // 거리 계산을 위해 사용자 좌표 전달(없으면 0m 처리)
+        StopDetailResponseDto dto = nearestStopService.getStopDetail(id, lat, lng);
+        if (dto == null) {
+            throw new NotFoundException("정류장 없음");
+        }
+        String regionId = dto.getRegionId() != null ? String.valueOf(dto.getRegionId()) : null;
+        String date = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).toString();
+        var body = new StopDetailNewResponse(
+                new Center(dto.getStopLat(), dto.getStopLng()),
                 formatStopId(dto.getStopId()),
-                String.valueOf(dto.getRegionId()),
                 dto.getName(),
-                dto.getNextArrivalTime(),
+                regionId,
+                dto.getRegionName(),
+                dto.getDistanceMeters(),
+                date,
+                dto.getEtaToNextSec(),
                 dto.getDwellSeconds()
         );
         return ResponseEntity.ok(body);
     }
 
-    /** summary 응답 스펙 */
-    static class NearestStopSimpleResponse {
-        public Center center; // 내 위치
+    /** summary 응답 스펙(신규) */
+    static class NearestStopNewResponse {
+        public Center center; // 정류장 좌표
         public String stopId;
-        public String name;
-        public NearestStopSimpleResponse(Center center, String stopId, String name) {
+        public String stopname;
+        public String regionId;
+        public String regionName;
+        public int distanceMeters;
+        public String date; // YYYY-MM-DD
+        public Integer etaToNextSec; // null 가능
+        public int dwellSeconds;
+        public NearestStopNewResponse(Center center, String stopId, String stopname, String regionId, String regionName,
+                                      int distanceMeters, String date, Integer etaToNextSec, int dwellSeconds) {
             this.center = center;
             this.stopId = stopId;
-            this.name = name;
+            this.stopname = stopname;
+            this.regionId = regionId;
+            this.regionName = regionName;
+            this.distanceMeters = distanceMeters;
+            this.date = date;
+            this.etaToNextSec = etaToNextSec;
+            this.dwellSeconds = dwellSeconds;
         }
     }
 
-    /** stop detail 응답 스펙 */
-    static class StopDetailSimpleResponse {
-        public String stopId;
-        public String regionId;
-        public String name;
-        public String nextArrivalTime;
+    /** stop detail 응답 스펙(신규) */
+    static class StopDetailNewResponse {
+        public Center center; // 정류장 좌표
+        public String stopId; // so-XXX
+        public String stopname; // 정류장 이름
+        public String regionId; // 문자열
+        public String regionName;
+        public int distanceMeters;
+        public String date; // YYYY-MM-DD
+        public Integer etaToNextSec; // null 가능
         public int dwellSeconds;
-        public StopDetailSimpleResponse(String stopId, String regionId, String name, String nextArrivalTime, int dwellSeconds) {
+        public StopDetailNewResponse(Center center, String stopId, String stopname, String regionId, String regionName,
+                                     int distanceMeters, String date, Integer etaToNextSec, int dwellSeconds) {
+            this.center = center;
             this.stopId = stopId;
+            this.stopname = stopname;
             this.regionId = regionId;
-            this.name = name;
-            this.nextArrivalTime = nextArrivalTime;
+            this.regionName = regionName;
+            this.distanceMeters = distanceMeters;
+            this.date = date;
+            this.etaToNextSec = etaToNextSec;
             this.dwellSeconds = dwellSeconds;
         }
     }
@@ -121,15 +197,5 @@ public class NearestStopController {
         public double lat;
         public double lng;
         public Center(double lat, double lng) { this.lat = lat; this.lng = lng; }
-    }
-
-    /** 단순 에러 응답 바디 */
-    static class ErrorResponse {
-        public String code;
-        public String message;
-        public ErrorResponse(String code, String message) {
-            this.code = code;
-            this.message = message;
-        }
     }
 }
