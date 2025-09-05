@@ -42,6 +42,7 @@ public class NearestStopService {
 
         String nextArrivalTime = null;
         int dwellSeconds = 0;
+        Integer etaSecFinal = null;
         if (!liveBuses.isEmpty()) {
             BusLive soonest = liveBuses.stream().min(
                     Comparator.comparingInt(bl -> bl.getEtaToNextSec() != null ? bl.getEtaToNextSec() : Integer.MAX_VALUE)
@@ -51,6 +52,7 @@ public class NearestStopService {
             if (etaSec != null) {
                 var nowKst = java.time.ZonedDateTime.now(KST);
                 nextArrivalTime = nowKst.plusSeconds(etaSec).toLocalTime().format(HHMM);
+                etaSecFinal = etaSec;
             }
             dwellSeconds = soonest.getRemainingDwellSec() != null ? soonest.getRemainingDwellSec() : 0;
         }
@@ -60,6 +62,13 @@ public class NearestStopService {
         );
         dto.setStopLat(stopLat);
         dto.setStopLng(stopLng);
+        // region 정보
+        if (stop.getRegion() != null) {
+            dto.setRegionId(stop.getRegion().getRegionId());
+            dto.setRegionName(stop.getRegion().getName());
+        }
+        // ETA(초)
+        dto.setEtaToNextSec(etaSecFinal);
         return dto;
     }
 
@@ -67,28 +76,82 @@ public class NearestStopService {
         Stops stop = stopsRepository.findById(stopId)
                 .orElseThrow(() -> new NotFoundException("정류장 없음"));
 
-        // ★ 여기서도 region 필터 제거
+        // 실시간 버스 상태
         List<BusLive> liveBuses = busLiveRepository.findByCurrentStopId(stop.getStopId());
 
-        String nextArrivalTime = null;
         int dwellSeconds = 0;
+        Integer etaSecFinal = null;
         if (!liveBuses.isEmpty()) {
             BusLive soonest = liveBuses.stream().min(
                     Comparator.comparingInt(bl -> bl.getEtaToNextSec() != null ? bl.getEtaToNextSec() : Integer.MAX_VALUE)
             ).get();
             Integer etaSec = soonest.getEtaToNextSec();
             if (etaSec != null) {
-                var nowKst = java.time.ZonedDateTime.now(KST);
-                nextArrivalTime = nowKst.plusSeconds(etaSec).toLocalTime().format(HHMM);
+                etaSecFinal = etaSec;
             }
             dwellSeconds = soonest.getRemainingDwellSec() != null ? soonest.getRemainingDwellSec() : 0;
         }
 
-        // regionId가 꼭 필요하면 stop.getRegion()에서 꺼내 전달(뷰 표시에만 사용)
         Long regionId = (stop.getRegion() != null) ? stop.getRegion().getRegionId() : null;
+        String regionName = (stop.getRegion() != null) ? stop.getRegion().getName() : null;
+        double stopLat = stop.getLat() != null ? stop.getLat().doubleValue() : 0.0;
+        double stopLng = stop.getLng() != null ? stop.getLng().doubleValue() : 0.0;
 
         return new StopDetailResponseDto(
-                stop.getStopId(), regionId, stop.getStopName(), nextArrivalTime, dwellSeconds
+                stop.getStopId(),
+                regionId,
+                stop.getStopName(),
+                // nextArrivalTime 제거됨 → dwellSeconds가 바로 옴
+                dwellSeconds,
+                regionName,
+                etaSecFinal,
+                0,
+                stopLat,
+                stopLng
+        );
+    }
+
+    /** 상세 조회: 사용자 좌표를 받아 distanceMeters와 ETA초를 포함해 반환 */
+    public StopDetailResponseDto getStopDetail(Long stopId, Double userLat, Double userLng) {
+        Stops stop = stopsRepository.findById(stopId)
+                .orElseThrow(() -> new NotFoundException("정류장 없음"));
+
+        double stopLat = stop.getLat() != null ? stop.getLat().doubleValue() : 0.0;
+        double stopLng = stop.getLng() != null ? stop.getLng().doubleValue() : 0.0;
+
+        int distanceMeters = 0;
+        if (userLat != null && userLng != null) {
+            distanceMeters = haversineMeters(userLat, userLng, stopLat, stopLng);
+        }
+
+        List<BusLive> liveBuses = busLiveRepository.findByCurrentStopId(stop.getStopId());
+
+        int dwellSeconds = 0;
+        Integer etaSecFinal = null;
+        if (!liveBuses.isEmpty()) {
+            BusLive soonest = liveBuses.stream().min(
+                    Comparator.comparingInt(bl -> bl.getEtaToNextSec() != null ? bl.getEtaToNextSec() : Integer.MAX_VALUE)
+            ).get();
+            Integer etaSec = soonest.getEtaToNextSec();
+            if (etaSec != null) {
+                etaSecFinal = etaSec;
+            }
+            dwellSeconds = soonest.getRemainingDwellSec() != null ? soonest.getRemainingDwellSec() : 0;
+        }
+
+        Long regionId = (stop.getRegion() != null) ? stop.getRegion().getRegionId() : null;
+        String regionName = (stop.getRegion() != null) ? stop.getRegion().getName() : null;
+
+        return new StopDetailResponseDto(
+                stop.getStopId(),
+                regionId,
+                stop.getStopName(),
+                dwellSeconds,
+                regionName,
+                etaSecFinal,
+                distanceMeters,
+                stopLat,
+                stopLng
         );
     }
 
