@@ -1,8 +1,8 @@
 package me.nam.dreamdriversserver.domain.user.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import lombok.Builder.Default;
 import me.nam.dreamdriversserver.domain.application.entity.Applications;
 
 import java.time.LocalDateTime;
@@ -12,6 +12,9 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @Table(name = "users")
 public class Users {
     @Id
@@ -35,5 +38,13 @@ public class Users {
     private LocalDateTime createdAt; // 생성일
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Default
     private List<Applications> applications = new ArrayList<>();
+
+    // Users.java 내부
+    public static Users ofId(Long userId) {
+        return Users.builder()
+                .userId(userId) // 필드명이 id가 아니라 userId인 프로젝트 구조에 맞춤
+                .build();
+    }
 }

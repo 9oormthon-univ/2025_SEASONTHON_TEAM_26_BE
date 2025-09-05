@@ -35,7 +35,7 @@ public class UserController {
 
     @Operation(summary = "토큰 재발급", description = "Refresh Token을 검증하고 새로운 Access/Refresh 발급")
     @PostMapping("/token/refresh")
-    public ResponseEntity<LoginResponseDto> refresh(@Valid @RequestBody TokenRefreshRequestDto request) {
+    public ResponseEntity<TokenResponseDto> refresh(@Valid @RequestBody TokenRefreshRequestDto request) {
         return ResponseEntity.ok(userService.refresh(request.getRefreshToken()));
     }
 

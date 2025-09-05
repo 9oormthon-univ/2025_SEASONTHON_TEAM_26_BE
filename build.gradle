@@ -19,15 +19,11 @@ configurations {
 repositories { mavenCentral() }
 
 dependencies {
-	// Web (MVC)
+	// Spring
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-
-	// Security & OAuth2 Client
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-
-	// WebClient 사용하려면 WebFlux 스타터 필요
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebClient 쓰면 유지
 
 	// JPA & MySQL
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -36,15 +32,18 @@ dependencies {
 	// Validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-	// Swagger(OpenAPI)
+	// Swagger
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
-	// JWT (jjwt)
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+	// ✅ JJWT 0.9.1 (구버전)
+	implementation 'io.jsonwebtoken:jjwt:0.9.1'
 
-	// Flyway (마이그레이션)
+	// ✅ Java 11+에서 필요한 JAXB 런타임(및 activation)
+	implementation 'javax.xml.bind:jaxb-api:2.3.1'
+	implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
+	implementation 'com.sun.activation:javax.activation:1.2.0'
+
+	// Flyway
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-mysql'
 
@@ -56,6 +55,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
 
 tasks.named('test') {
 	useJUnitPlatform()

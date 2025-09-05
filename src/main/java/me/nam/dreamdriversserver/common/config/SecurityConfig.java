@@ -1,5 +1,6 @@
 package me.nam.dreamdriversserver.common.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import me.nam.dreamdriversserver.common.jwt.JwtAuthenticationFilter;
 import me.nam.dreamdriversserver.common.jwt.JwtTokenProvider;
 import me.nam.dreamdriversserver.domain.user.repository.UserRepository;
@@ -9,11 +10,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.*;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
@@ -31,10 +34,11 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 공개: 인증 없이 접근 가능
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/auth/**",
-                                "/v3/api-docs/**", "/swagger-ui/**", "/docs/**"
+                                "/v3/api-docs/**", "/swagger-ui/**", "/docs/**",
+                                "/error"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/regions/search",
@@ -44,15 +48,23 @@ public class SecurityConfig {
                                 "/stops/nearest",
                                 "/map/overview"
                         ).permitAll()
-                        // 보호: 토큰 필요
-                        .requestMatchers(
-                                "/applications/**" // POST /applications 등
-                        ).authenticated()
+                        .requestMatchers("/applications/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(h -> h.disable())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"UNAUTHORIZED\"}");
+                        })
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"FORBIDDEN\"}");
+                        })
+                );
 
-        // JWT 필터 등록 (UsernamePasswordAuthenticationFilter 앞)
         http.addFilterBefore(
                 new JwtAuthenticationFilter(tokenProvider, userRepository),
                 UsernamePasswordAuthenticationFilter.class
@@ -61,16 +73,15 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    @Bean
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
-    // 프론트 도메인/메서드/헤더 허용
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "http://localhost:5173"
-                // 배포 도메인 추가 예정이면 여기에
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));

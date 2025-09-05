@@ -4,11 +4,13 @@ package me.nam.dreamdriversserver.domain.user.service;
 import lombok.RequiredArgsConstructor;
 import me.nam.dreamdriversserver.common.jwt.JwtTokenProvider;
 import me.nam.dreamdriversserver.common.oauth.KakaoOAuthClient;
-import me.nam.dreamdriversserver.domain.user.dto.*;
-import me.nam.dreamdriversserver.domain.user.entity.Users;
+import me.nam.dreamdriversserver.domain.user.dto.KakaoLoginResponseDto;
+import me.nam.dreamdriversserver.domain.user.dto.KakaoTokenResponse;
+import me.nam.dreamdriversserver.domain.user.dto.KakaoUserResponse;
 import me.nam.dreamdriversserver.domain.user.entity.RefreshToken;
-import me.nam.dreamdriversserver.domain.user.repository.UserRepository;
+import me.nam.dreamdriversserver.domain.user.entity.Users;
 import me.nam.dreamdriversserver.domain.user.repository.RefreshTokenRepository;
+import me.nam.dreamdriversserver.domain.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,49 +27,61 @@ public class KakaoAuthService {
 
     @Transactional
     public KakaoLoginResponseDto loginWithCode(String code) {
-        // 1) code → kakao access token
+        // 1) code -> kakao access token
         KakaoTokenResponse token = kakaoOAuthClient.exchangeToken(code);
 
         // 2) kakao user info
         KakaoUserResponse profile = kakaoOAuthClient.getUser(token.getAccessToken());
-        String email = profile.getKakaoAccount() != null ? profile.getKakaoAccount().getEmail() : null;
-        String name  = (profile.getKakaoAccount()!=null && profile.getKakaoAccount().getProfile()!=null)
-                ? profile.getKakaoAccount().getProfile().getNickname() : "카카오사용자";
 
-        // 3) 우리 서비스 사용자 upsert
-        //    loginId/email 모두 이메일 사용 (카카오는 이메일 동의가 꺼져있으면 null일 수 있음 → 그때는 id 기반 대체)
-        String loginId = (email != null && !email.isBlank()) ? email : "kakao_" + profile.getId();
+        String email = (profile.getKakaoAccount() != null)
+                ? profile.getKakaoAccount().getEmail()
+                : null;
 
+        String nickname = (profile.getKakaoAccount() != null && profile.getKakaoAccount().getProfile() != null)
+                ? profile.getKakaoAccount().getProfile().getNickname()
+                : "카카오사용자";
+
+        // 이메일이 없으면 카카오 고유 id 기반으로 loginId 대체
+        String loginId = (email != null && !email.isBlank())
+                ? email
+                : "kakao_" + profile.getId();
+
+        // 3) 우리 서비스 사용자 upsert (Users는 new 금지 -> builder 사용)
         Users user = userRepository.findByLoginId(loginId)
-                .orElseGet(() -> {
-                    Users u = new Users();
-                    u.setLoginId(loginId);
-                    u.setEmail(email != null ? email : loginId);
-                    u.setName(name);
-                    u.setCreatedAt(LocalDateTime.now());
-                    return userRepository.save(u);
-                });
+                .orElseGet(() -> userRepository.save(
+                        Users.builder()
+                                .loginId(loginId)
+                                .password(null)          // 소셜 로그인이라 비번 없음
+                                .name(nickname)
+                                .email(email)            // 동의 안하면 null 가능
+                                .createdAt(LocalDateTime.now())
+                                .build()
+                ));
 
-        // 4) JWT 발급
-        String access  = jwtTokenProvider.createAccessToken(user.getLoginId());
-        String refresh = jwtTokenProvider.createRefreshToken(user.getLoginId());
+        // 4) JWT 발급 (현 프로젝트 정책: loginId를 subject로 사용)
+        String accessToken  = jwtTokenProvider.createAccessToken(user.getUserId(), user.getLoginId());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(),user.getLoginId());
 
-        // 5) RefreshToken 저장(Upsert)
+        // 5) RefreshToken upsert
         refreshTokenRepository.findByLoginId(user.getLoginId())
                 .ifPresentOrElse(
-                        rt -> rt.setToken(refresh),
+                        rt -> rt.setToken(refreshToken),
                         () -> refreshTokenRepository.save(
-                                RefreshToken.builder().loginId(user.getLoginId()).token(refresh).build()
+                                RefreshToken.builder()
+                                        .loginId(user.getLoginId())
+                                        .token(refreshToken)
+                                        .build()
                         )
                 );
 
+        // 6) 응답
         return KakaoLoginResponseDto.builder()
                 .message("카카오 로그인/가입 성공")
-                .accessToken(access)
-                .refreshToken(refresh)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessExpSeconds())
-                .userId(user.getLoginId())
+                .userId(String.valueOf(user.getUserId()))      // DB PK 반환 (long)
                 .name(user.getName())
                 .build();
     }
