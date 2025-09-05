@@ -1,8 +1,7 @@
 package me.nam.dreamdriversserver.domain.application.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import me.nam.dreamdriversserver.domain.user.entity.Users;
 
 import java.time.LocalDate;
@@ -11,7 +10,8 @@ import me.nam.dreamdriversserver.domain.region.entity.Regions;
 
 @Entity
 @Getter
-@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
 @Table(name = "applications")
 public class Applications {
     @Id
@@ -19,7 +19,7 @@ public class Applications {
     @Column(name = "app_id")
     private Long appId; // 신청 아이디, PK
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private Users user; // 신청자 (FK)
 
@@ -55,4 +55,27 @@ public class Applications {
     @Column(name = "created_at")
     private LocalDateTime createdAt; // 신청 생성일
 
+    @Builder
+    private Applications(Long appId, Users user, Regions region, String name, Integer age, String phoneNumber, String address,
+                         String desiredBook, String desiredProgram, LocalDate serviceDate, ApplicationStatus status, LocalDateTime createdAt) {
+        this.appId = appId;
+        this.user = user;
+        this.region = region;
+        this.name = name;
+        this.age = age;
+        this.phoneNumber = phoneNumber;
+        this.address = address;
+        this.desiredBook = desiredBook;
+        this.desiredProgram = desiredProgram;
+        this.serviceDate = serviceDate;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
+
+    public static Applications ofUserId(Long userId) {
+        Users userProxy = Users.builder().userId(userId).build();
+        return Applications.builder()
+                .user(userProxy)
+                .build();
+    }
 }

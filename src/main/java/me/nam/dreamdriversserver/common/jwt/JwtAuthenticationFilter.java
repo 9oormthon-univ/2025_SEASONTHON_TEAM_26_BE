@@ -4,17 +4,14 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import me.nam.dreamdriversserver.domain.user.entity.Users;
+import me.nam.dreamdriversserver.common.security.AuthUser;
 import me.nam.dreamdriversserver.domain.user.repository.UserRepository;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -28,23 +25,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest req, HttpServletResponse res, FilterChain chain
+            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String auth = req.getHeader(HttpHeaders.AUTHORIZATION);
-        if (StringUtils.hasText(auth) && auth.startsWith("Bearer ")) {
-            String token = auth.substring(7);
-            if (tokenProvider.validate(token)) {
-                String loginId = tokenProvider.getLoginId(token);
-                userRepository.findByLoginId(loginId).ifPresent(u -> {
-                    // 권한 필요 시 Users에 role 필드를 추가해서 매핑
-                    var authToken = new UsernamePasswordAuthenticationToken(
-                            u.getLoginId(), null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                });
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+
+            if (tokenProvider.validateToken(token)) {
+                Long userId = tokenProvider.getUserId(token);
+                String email = tokenProvider.getEmail(token);
+                String role = tokenProvider.getRole(token);
+                // (선택) DB 존재 확인/차단 사용자 체크가 필요하면 repository 사용
+                // userRepository.findById(userId).orElseThrow(...)
+
+                AuthUser principal = new AuthUser(userId, email, role == null ? "ROLE_USER" : role);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                principal, null, principal.toAuthorities()
+                        );
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
-        chain.doFilter(req, res);
+
+        filterChain.doFilter(request, response);
     }
 }
