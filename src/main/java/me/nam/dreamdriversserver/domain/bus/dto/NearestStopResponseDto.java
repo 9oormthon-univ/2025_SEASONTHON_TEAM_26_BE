@@ -9,19 +9,6 @@ import lombok.Setter;
  * GET /stops/nearest 200 응답 DTO
  * - 사용자 위치(lat,lng)와 regionId를 기준으로, 가장 가까운 정류장 정보를 반환합니다.
  * - 404의 경우 이 DTO가 아닌 { code, message } 에러 바디를 반환합니다.
- *
- * 반환 예시(JSON):
- * {
- *   "stopId": 123,
- *   "name": "서초동도서관",
- *   "nextArrivalTime": "09:25",
- *   "dwellSeconds": 120,
- *   "distanceMeters": 184,
- *   "userLat": 37.4921,
- *   "userLng": 127.0305,
- *   "stopLat": 37.4836,
- *   "stopLng": 127.0326
- * }
  */
 @Getter
 @Setter
@@ -56,7 +43,7 @@ public class NearestStopResponseDto {
     /**
      * 사용자 현재 위치로부터 정류장까지의 거리(미터)
      * - Haversine 공식으로 계산한 직선 거리
-     * - 소수점 이하는 절삭/반올림 전략에 따라 정수 변환됨(현재 구현은 절삭)
+     * - 소수점 이하는 삭제/반올림 전략에 따라 정수 변환됨(현재 구현은 삭제)
      */
     private int distanceMeters;
 
@@ -79,6 +66,12 @@ public class NearestStopResponseDto {
      * 정류장 경도
      */
     private double stopLng;
+
+    // 신규: 지역 정보 및 ETA(초)
+    private Long regionId;       // 지역 ID
+    private String regionName;   // 지역 이름
+    private Integer etaToNextSec; // 다음 도착 ETA(초), 없으면 null
+
 
     public NearestStopResponseDto(Long stopId, String stopName, String nextArrivalTime, int dwellSeconds, int distanceMeters, double lat, double lng) {
         this.stopId = stopId;
