@@ -1,6 +1,8 @@
 package me.nam.dreamdriversserver.domain.region.service;
 
 import lombok.RequiredArgsConstructor;
+import me.nam.dreamdriversserver.common.exception.AppException;
+import me.nam.dreamdriversserver.common.exception.ErrorCode;
 import me.nam.dreamdriversserver.domain.region.dto.RegionServiceResponseDto;
 import me.nam.dreamdriversserver.domain.region.entity.Regions;
 import me.nam.dreamdriversserver.domain.region.repository.RegionsRepository;
