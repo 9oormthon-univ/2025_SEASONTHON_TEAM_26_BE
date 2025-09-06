@@ -144,14 +144,23 @@ public class NearestStopController {
 
     /** summary 응답 스펙(신규) */
     static class NearestStopNewResponse {
+        @Schema(description = "정류장 좌표")
         public Center center; // 정류장 좌표
+        @Schema(description = "정류장 식별자(so-포맷)", example = "so-002")
         public String stopId;
+        @Schema(description = "정류장 이름", example = "서초동도서관")
         public String stopname;
+        @Schema(description = "지역 ID(문자열)", example = "1001")
         public String regionId;
+        @Schema(description = "지역 이름", example = "서울특별시 서초구")
         public String regionName;
+        @Schema(description = "사용자 위치로부터 거리(미터)", example = "184")
         public int distanceMeters;
+        @Schema(description = "조회일(yyyy-MM-dd)", example = "2025-09-05")
         public String date; // YYYY-MM-DD
+        @Schema(description = "다음 정류장까지 ETA 초(null 가능)", example = "320")
         public Integer etaToNextSec; // null 가능
+        @Schema(description = "현재 정류장 체류 예상/잔여 초", example = "120")
         public int dwellSeconds;
         public NearestStopNewResponse(Center center, String stopId, String stopname, String regionId, String regionName,
                                       int distanceMeters, String date, Integer etaToNextSec, int dwellSeconds) {
@@ -169,14 +178,23 @@ public class NearestStopController {
 
     /** stop detail 응답 스펙(신규) */
     static class StopDetailNewResponse {
+        @Schema(description = "정류장 좌표")
         public Center center; // 정류장 좌표
+        @Schema(description = "정류장 식별자(so-포맷)", example = "so-002")
         public String stopId; // so-XXX
+        @Schema(description = "정류장 이름", example = "서초동도서관")
         public String stopname; // 정류장 이름
+        @Schema(description = "지역 ID(문자열)", example = "1001")
         public String regionId; // 문자열
+        @Schema(description = "지역 이름", example = "서울특별시 서초구")
         public String regionName;
+        @Schema(description = "사용자 위치로부터 거리(미터)", example = "0")
         public int distanceMeters;
+        @Schema(description = "조회일(yyyy-MM-dd)", example = "2025-09-05")
         public String date; // YYYY-MM-DD
+        @Schema(description = "다음 정류장까지 ETA 초(null 가능)", example = "300")
         public Integer etaToNextSec; // null 가능
+        @Schema(description = "현재 정류장 체류 예상/잔여 초", example = "0")
         public int dwellSeconds;
         public StopDetailNewResponse(Center center, String stopId, String stopname, String regionId, String regionName,
                                      int distanceMeters, String date, Integer etaToNextSec, int dwellSeconds) {
@@ -194,7 +212,9 @@ public class NearestStopController {
 
     /** 좌표 래퍼 */
     static class Center {
+        @Schema(description = "위도", example = "37.4836")
         public double lat;
+        @Schema(description = "경도", example = "127.0326")
         public double lng;
         public Center(double lat, double lng) { this.lat = lat; this.lng = lng; }
     }

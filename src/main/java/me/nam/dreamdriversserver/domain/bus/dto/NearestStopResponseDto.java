@@ -74,6 +74,11 @@ public class NearestStopResponseDto {
 
 
     private Integer etaToNextSec; // 다음 도착 ETA(초), 없으면 null
+    // 신규 필드
+    private String arrivalTime;          // 예정 도착 HH:mm
+    private String departureTime;        // 예정 출발 HH:mm
+    private Integer dwellPlannedSeconds; // 예정 정차(초)
+    private Long applicantCount;         // 해당 정류장 신청자 수
 
 
 

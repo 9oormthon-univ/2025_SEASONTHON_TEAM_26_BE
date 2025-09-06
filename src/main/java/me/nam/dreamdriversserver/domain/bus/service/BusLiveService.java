@@ -19,6 +19,7 @@ public class BusLiveService {
     private final CourseStopsRepository courseStopsRepository;
     private final BusRepository busRepository;
     private final BusLiveRepository busLiveRepository;
+    private final ScheduleCalculatorService scheduleCalculatorService;
 
     // TIME_FMT 제거: plannedArrival 필드를 더 이상 사용하지 않음
     private static final DateTimeFormatter ISO_OFFSET_FMT = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
@@ -55,6 +56,9 @@ public class BusLiveService {
 
         // 코스 정류장 목록(order ASC)
         List<CourseStops> courseStops = courseStopsRepository.findByCourseIdOrderByStopOrder(course.getCourseId());
+
+        // 가변 스케줄(요일 기반, 날짜 미지정) 계산 - dateAware=false
+        Map<Long, ScheduleCalculatorService.TimedStop> schedule = scheduleCalculatorService.compute(course, null, false);
 
         // 인덱스 맵: stopId -> order
         Map<Long, Integer> stopOrderMap = new HashMap<>();
@@ -126,25 +130,24 @@ public class BusLiveService {
             Integer order = cs.getStopOrder();
             lastOrder = Math.max(lastOrder, order == null ? 0 : order);
             Integer dwellRemainingSec = null;
-            Integer etaFromNowSec = null; // 이름은 유지하되 의미는 "���착시간"으로 사용
+            Integer etaFromNowSec = null; // 의미: 도착 ETA
 
             boolean isCurrent = (currentOrder != null && order != null && Objects.equals(order, currentOrder));
             boolean isNext = (nextOrder != null && order != null && Objects.equals(order, nextOrder));
 
             if ("STOPPED".equals(status)) {
                 if (isCurrent) {
-                    dwellRemainingSec = dwellSeconds; // 감소
+                    dwellRemainingSec = dwellSeconds; // 감소 적용된 값
                 } else if (isNext) {
-                    etaFromNowSec = srcEtaToNext; // 도착시간 값 그대로
+                    etaFromNowSec = srcEtaToNext; // ETA
                 }
             } else if ("IN_SERVICE".equals(status)) {
                 if (isNext) {
-                    etaFromNowSec = srcEtaToNext; // 도착시간 값 그대로(감소 없음)
+                    etaFromNowSec = srcEtaToNext;
                 }
-            } else {
-                // OFFLINE -> 모두 null
             }
 
+            ScheduleCalculatorService.TimedStop ts = schedule.get(s.getStopId());
             BusLiveResponseDto.Stop dtoStop = BusLiveResponseDto.Stop.builder()
                     .order(order)
                     .stopId(String.valueOf(s.getStopId()))
@@ -157,6 +160,10 @@ public class BusLiveService {
                             .dwellRemainingSec(dwellRemainingSec)
                             .etaFromNowSec(etaFromNowSec)
                             .build())
+                    .arrivalTime(ts != null ? ts.arrivalStr() : null)
+                    .departureTime(ts != null ? ts.departureStr() : null)
+                    .dwellPlannedSeconds(ts != null ? ts.dwellSeconds() : null)
+                    .applicantCount(ts != null ? ts.applicantCount() : null)
                     .build();
             stops.add(dtoStop);
         }
