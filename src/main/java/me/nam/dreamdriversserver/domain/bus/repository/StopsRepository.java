@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.Optional;
+import java.util.List;
 
 /**
  * 정류장(Stops) 조회 리포지토리
@@ -20,9 +21,14 @@ public interface StopsRepository extends JpaRepository<Stops, Long> {
     Optional<Stops> findNearestStop(@Param("lat") double lat, @Param("lng") double lng, @Param("regionId") Long regionId);
 
     /**
-     * 지역 필터 없이 전체 정류장 중에서 가장 가까운 정류장 1건을 반환합니다.
+     * 지역 필터 없이 정류장 중에서 가장 가까운 정류장 1건을 반환합니다.
      */
     @Query(value = "SELECT s.* , (6371000 * acos(cos(radians(:lat)) * cos(radians(s.lat)) * cos(radians(s.lng) - radians(:lng)) + sin(radians(:lat)) * sin(radians(s.lat)))) AS distance " +
             "FROM stops s ORDER BY distance ASC LIMIT 1", nativeQuery = true)
     Optional<Stops> findNearestStopAll(@Param("lat") double lat, @Param("lng") double lng);
+
+    /**
+     * 테스트 및 클러스터링용: 생성일(createAt) 오름차순 정렬
+     */
+    List<Stops> findByRegion_RegionIdOrderByCreateAtAsc(Long regionId);
 }

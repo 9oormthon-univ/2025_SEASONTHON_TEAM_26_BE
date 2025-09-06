@@ -13,4 +13,7 @@ import java.util.List;
 public interface CourseStopsRepository extends JpaRepository<CourseStops, Long> {
     @Query("SELECT cs FROM CourseStops cs WHERE cs.course.courseId = :courseId ORDER BY cs.stopOrder ASC")
     List<CourseStops> findByCourseIdOrderByStopOrder(@Param("courseId") Long courseId);
+
+    @Query("SELECT cs FROM CourseStops cs WHERE cs.stop.stopId = :stopId AND cs.course.dow = :dow AND cs.course.active = true ORDER BY cs.course.startTime ASC")
+    List<CourseStops> findActiveByStopAndDow(@Param("stopId") Long stopId, @Param("dow") me.nam.dreamdriversserver.domain.bus.entity.DayOfWeek dow);
 }

@@ -8,12 +8,20 @@ import me.nam.dreamdriversserver.domain.bus.entity.BusLive;
 import me.nam.dreamdriversserver.domain.bus.entity.Stops;
 import me.nam.dreamdriversserver.domain.bus.repository.BusLiveRepository;
 import me.nam.dreamdriversserver.domain.bus.repository.StopsRepository;
+import me.nam.dreamdriversserver.domain.bus.repository.CourseStopsRepository;
+import me.nam.dreamdriversserver.domain.bus.entity.CourseStops;
+import me.nam.dreamdriversserver.domain.bus.entity.DayOfWeek;
+import me.nam.dreamdriversserver.domain.bus.entity.Course;
+import me.nam.dreamdriversserver.domain.bus.service.ScheduleCalculatorService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +32,50 @@ public class NearestStopService {
 
     private final StopsRepository stopsRepository;
     private final BusLiveRepository busLiveRepository;
+    private final CourseStopsRepository courseStopsRepository;
+    private final ScheduleCalculatorService scheduleCalculatorService;
+
+    private DayOfWeek mapToDomainDayOfWeek(LocalDate date) {
+        java.time.DayOfWeek j = date.getDayOfWeek();
+        return switch (j) {
+            case MONDAY -> DayOfWeek.MON;
+            case TUESDAY -> DayOfWeek.TUE;
+            case WEDNESDAY -> DayOfWeek.WED;
+            case THURSDAY -> DayOfWeek.THU;
+            case FRIDAY -> DayOfWeek.FRI;
+            default -> null;
+        };
+    }
+
+    private void enrichPlannedSchedule(NearestStopResponseDto dto, Stops stop) {
+        var dow = mapToDomainDayOfWeek(LocalDate.now());
+        if (dow == null) return; // 주말
+        var csList = courseStopsRepository.findActiveByStopAndDow(stop.getStopId(), dow);
+        if (csList.isEmpty()) return;
+        Course course = csList.get(0).getCourse();
+        Map<Long, ScheduleCalculatorService.TimedStop> schedule = scheduleCalculatorService.compute(course, null, false);
+        var ts = schedule.get(stop.getStopId());
+        if (ts == null) return;
+        dto.setArrivalTime(ts.arrivalStr());
+        dto.setDepartureTime(ts.departureStr());
+        dto.setDwellPlannedSeconds(ts.dwellSeconds());
+        dto.setApplicantCount(ts.applicantCount());
+    }
+
+    private void enrichPlannedSchedule(StopDetailResponseDto dto, Stops stop) {
+        var dow = mapToDomainDayOfWeek(LocalDate.now());
+        if (dow == null) return;
+        var csList = courseStopsRepository.findActiveByStopAndDow(stop.getStopId(), dow);
+        if (csList.isEmpty()) return;
+        Course course = csList.get(0).getCourse();
+        Map<Long, ScheduleCalculatorService.TimedStop> schedule = scheduleCalculatorService.compute(course, null, false);
+        var ts = schedule.get(stop.getStopId());
+        if (ts == null) return;
+        dto.setArrivalTime(ts.arrivalStr());
+        dto.setDepartureTime(ts.departureStr());
+        dto.setDwellPlannedSeconds(ts.dwellSeconds());
+        dto.setApplicantCount(ts.applicantCount());
+    }
 
     public NearestStopResponseDto getNearestStop(double lat, double lng) {
         Stops stop = stopsRepository.findNearestStopAll(lat, lng)
@@ -62,13 +114,13 @@ public class NearestStopService {
         );
         dto.setStopLat(stopLat);
         dto.setStopLng(stopLng);
-        // region 정보
         if (stop.getRegion() != null) {
             dto.setRegionId(stop.getRegion().getRegionId());
             dto.setRegionName(stop.getRegion().getName());
         }
-        // ETA(초)
         dto.setEtaToNextSec(etaSecFinal);
+        // 가변 스케줄 주입
+        enrichPlannedSchedule(dto, stop);
         return dto;
     }
 
@@ -97,11 +149,10 @@ public class NearestStopService {
         double stopLat = stop.getLat() != null ? stop.getLat().doubleValue() : 0.0;
         double stopLng = stop.getLng() != null ? stop.getLng().doubleValue() : 0.0;
 
-        return new StopDetailResponseDto(
+        StopDetailResponseDto dto = new StopDetailResponseDto(
                 stop.getStopId(),
                 regionId,
                 stop.getStopName(),
-                // nextArrivalTime 제거됨 → dwellSeconds가 바로 옴
                 dwellSeconds,
                 regionName,
                 etaSecFinal,
@@ -109,6 +160,8 @@ public class NearestStopService {
                 stopLat,
                 stopLng
         );
+        enrichPlannedSchedule(dto, stop);
+        return dto;
     }
 
     /** 상세 조회: 사용자 좌표를 받아 distanceMeters와 ETA초를 포함해 반환 */
@@ -142,7 +195,7 @@ public class NearestStopService {
         Long regionId = (stop.getRegion() != null) ? stop.getRegion().getRegionId() : null;
         String regionName = (stop.getRegion() != null) ? stop.getRegion().getName() : null;
 
-        return new StopDetailResponseDto(
+        StopDetailResponseDto dto = new StopDetailResponseDto(
                 stop.getStopId(),
                 regionId,
                 stop.getStopName(),
@@ -153,6 +206,8 @@ public class NearestStopService {
                 stopLat,
                 stopLng
         );
+        enrichPlannedSchedule(dto, stop);
+        return dto;
     }
 
     private static int haversineMeters(double lat1, double lng1, double lat2, double lng2) {

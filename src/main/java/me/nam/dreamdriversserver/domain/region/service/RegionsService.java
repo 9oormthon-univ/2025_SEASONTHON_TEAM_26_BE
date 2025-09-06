@@ -17,6 +17,9 @@ import me.nam.dreamdriversserver.domain.bus.entity.DayOfWeek;
 import me.nam.dreamdriversserver.domain.bus.repository.CourseRepository;
 import me.nam.dreamdriversserver.domain.bus.repository.CourseStopsRepository;
 import me.nam.dreamdriversserver.domain.region.dto.RegionHierarchySearchResponseDto;
+import me.nam.dreamdriversserver.common.exception.AppException; // 유지
+import me.nam.dreamdriversserver.common.exception.ErrorCode; // 유지
+import me.nam.dreamdriversserver.domain.bus.service.ScheduleCalculatorService; // 유지
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ public class RegionsService {
     private final RegionHierarchyProvider hierarchyProvider;
     private final CourseRepository courseRepository;
     private final CourseStopsRepository courseStopsRepository;
+    private final ScheduleCalculatorService scheduleCalculatorService; // 가변 스케줄 계산
 
     /** 지역 계층 검색 (q, depth, limit) */
     public RegionHierarchySearchResponseDto searchHierarchy(String q, Integer depth, Integer limit) {
@@ -122,7 +126,6 @@ public class RegionsService {
 
         DayOfWeek dow = mapToDomainDayOfWeek(date);
         if (dow == null) {
-            // 주말은 운행 없음: 빈 items로 응답
             return new RegionServiceResponseDto(
                     new RegionServiceResponseDto.RegionMeta(String.valueOf(region.getRegionId()), region.getName()),
                     date.toString(),
@@ -130,20 +133,26 @@ public class RegionsService {
             );
         }
 
+        // 클러스터링이 ApplicationService에서 즉시 처리됨.
+
         List<Course> courses = courseRepository.findAllActiveByRegionAndDay(regionId, dow);
         List<RegionServiceResponseDto.CourseItem> items = new ArrayList<>();
         for (Course c : courses) {
+            var schedule = scheduleCalculatorService.compute(c, date, true); // dateAware=true
             List<CourseStops> stops = courseStopsRepository.findByCourseIdOrderByStopOrder(c.getCourseId());
             List<RegionServiceResponseDto.StopItem> stopItems = new ArrayList<>();
 
-            int dwellSec = (c.getDwellMin() != null ? c.getDwellMin() : 30) * 60;
             int travelSec = (c.getTravelMin() != null ? c.getTravelMin() : 30) * 60;
-
             for (int i = 0; i < stops.size(); i++) {
                 CourseStops cs = stops.get(i);
                 var s = cs.getStop();
+                var timed = schedule.getOrDefault(s.getStopId(), null);
                 int order = cs.getStopOrder() != null ? cs.getStopOrder() : (i + 1);
-                int etaNext = (i == stops.size() - 1) ? 0 : travelSec;
+                int etaNext = (i == stops.size() - 1) ? 0 : travelSec; // 단순 이동시간
+                int dwellSec = timed != null ? timed.dwellSeconds() : 0;
+                String arr = timed != null ? timed.arrivalStr() : null;
+                String dep = timed != null ? timed.departureStr() : null;
+                Long applicantCnt = timed != null ? timed.applicantCount() : 0L;
                 stopItems.add(new RegionServiceResponseDto.StopItem(
                         order,
                         String.valueOf(s.getStopId()),
@@ -151,19 +160,20 @@ public class RegionsService {
                         s.getLat() != null ? s.getLat().doubleValue() : 0.0,
                         s.getLng() != null ? s.getLng().doubleValue() : 0.0,
                         etaNext,
-                        dwellSec
+                        dwellSec,
+                        arr,
+                        dep,
+                        applicantCnt
                 ));
             }
-
             items.add(new RegionServiceResponseDto.CourseItem(
                     String.valueOf(c.getCourseId()),
                     buildCourseName(c),
                     stopItems
             ));
         }
-
         return new RegionServiceResponseDto(
-                new RegionServiceResponseDto.RegionMeta(String.valueOf(region.getRegionId()), region.getName()),
+                new RegionServiceResponseDto.RegionMeta(String.valueOf(regionId), region.getName()),
                 date.toString(),
                 items
         );

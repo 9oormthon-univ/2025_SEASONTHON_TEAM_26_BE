@@ -21,7 +21,7 @@ public class RegionServiceResponseDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class RegionMeta {
-        private String regionId; // 문자열로 반환 (내부 Long이면 문자열화)
+        private String regionId; // 문자로 반환 (내부 Long이면 문자열화)
         private String name;
     }
 
@@ -47,6 +47,9 @@ public class RegionServiceResponseDto {
         private double lng;
         private int etaToNextSec;
         private int dwellSeconds;
+        // 신규 필드
+        private String arrivalTime;     // HH:mm
+        private String departureTime;   // HH:mm
+        private Long applicantCount;    // 해당 정류장 신청자 수
     }
 }
-

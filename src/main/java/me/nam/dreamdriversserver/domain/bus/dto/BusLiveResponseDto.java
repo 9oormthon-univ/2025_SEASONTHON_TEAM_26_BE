@@ -42,6 +42,11 @@ public class BusLiveResponseDto {
         private String name;
         private Position position;
         private Live live;               // 실시간 정보
+        // 가변 스케줄 추가 필드
+        private String arrivalTime;       // HH:mm 예정 도착
+        private String departureTime;     // HH:mm 예정 출발
+        private Integer dwellPlannedSeconds; // 예정 정차(초)
+        private Long applicantCount;      // 해당 정류장 신청자 수
     }
 
     @Getter
