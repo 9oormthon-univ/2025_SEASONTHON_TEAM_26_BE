@@ -25,8 +25,9 @@ springdoc:
 
 logging:
   level:
-    org.hibernate.SQL: warn
-    org.springframework.security: info
+    root: debug
+#    org.hibernate.SQL: warn
+#    org.springframework.security: info
 
 jwt:
   secret: ${JWT_SECRET:Y0urSup3rL0ngSecr3t-Key_with_symbols_2025!!}
@@ -35,7 +36,7 @@ jwt:
 
 kakao:
   oauth:
-    client-id: 028c043da80499d5f5a4091190738ab0
+    client-id: a97ec6412ca3f704d9258fe1b0fa8281
     client-secret:
     redirect-uri: kakao028c043da80499d5f5a4091190738ab0://oauth
     token-uri: https://kauth.kakao.com/oauth/token

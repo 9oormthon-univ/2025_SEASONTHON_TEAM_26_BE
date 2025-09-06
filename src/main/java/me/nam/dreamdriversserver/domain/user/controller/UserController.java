@@ -39,10 +39,16 @@ public class UserController {
         return ResponseEntity.ok(userService.refresh(request.getRefreshToken()));
     }
 
-    @PostMapping("/kakao")
-    @Operation(summary = "카카오 로그인", description = "카카오 인가 코드로 로그인/가입 처리 후 서비스 토큰 발급")
-    public ResponseEntity<KakaoLoginResponseDto> kakaoLogin(@Valid @RequestBody KakaoLoginRequestDto req) {
-        KakaoLoginResponseDto res = kakaoAuthService.loginWithCode(req.getCode());
+    // UserController.java
+    @PostMapping("/auth/kakao")
+    @Operation(summary = "카카오 로그인(액세스 토큰 검증)", description = "카카오 access token으로 사용자 검증 후 서비스 JWT 발급")
+    public ResponseEntity<KakaoLoginResponseDto> kakaoLoginByToken(
+            @Valid @RequestBody KakaoLoginRequestDto req
+    ) {
+        String token = req.normalizedToken(); // ✅ 공백/개행 제거
+        KakaoLoginResponseDto res = kakaoAuthService.loginWithAccessToken(token);
         return ResponseEntity.ok(res);
     }
+
+
 }

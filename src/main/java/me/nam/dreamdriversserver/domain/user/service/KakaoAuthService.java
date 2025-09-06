@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+// KakaoAuthService.java
 @Service
 @RequiredArgsConstructor
 public class KakaoAuthService {
@@ -26,43 +27,39 @@ public class KakaoAuthService {
     private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
-    public KakaoLoginResponseDto loginWithCode(String code) {
-        // 1) code -> kakao access token
-        KakaoTokenResponse token = kakaoOAuthClient.exchangeToken(code);
+    public KakaoLoginResponseDto loginWithAccessToken(String rawAccessToken) {
+        // "Bearer xxx" 형태로 와도 처리
+        String kakaoAccessToken = stripBearer(rawAccessToken);
 
-        // 2) kakao user info
-        KakaoUserResponse profile = kakaoOAuthClient.getUser(token.getAccessToken());
+        // 1) 카카오 토큰 검증 + 프로필 조회
+        KakaoUserResponse profile = kakaoOAuthClient.getUser(kakaoAccessToken);
 
-        String email = (profile.getKakaoAccount() != null)
-                ? profile.getKakaoAccount().getEmail()
-                : null;
-
+        // 2) 우리 쪽 식별 키 결정
+        String email = profile.getKakaoAccount() != null ? profile.getKakaoAccount().getEmail() : null;
         String nickname = (profile.getKakaoAccount() != null && profile.getKakaoAccount().getProfile() != null)
                 ? profile.getKakaoAccount().getProfile().getNickname()
                 : "카카오사용자";
 
-        // 이메일이 없으면 카카오 고유 id 기반으로 loginId 대체
-        String loginId = (email != null && !email.isBlank())
-                ? email
-                : "kakao_" + profile.getId();
+        // 이메일이 없으면 kakao id 기반으로 loginId 구성
+        String loginId = (email != null && !email.isBlank()) ? email : "kakao_" + profile.getId();
 
-        // 3) 우리 서비스 사용자 upsert (Users는 new 금지 -> builder 사용)
+        // 3) upsert
         Users user = userRepository.findByLoginId(loginId)
                 .orElseGet(() -> userRepository.save(
                         Users.builder()
                                 .loginId(loginId)
-                                .password(null)          // 소셜 로그인이라 비번 없음
+                                .password(null)
                                 .name(nickname)
-                                .email(email)            // 동의 안하면 null 가능
-                                .createdAt(LocalDateTime.now())
+                                .email(email)
+                                .createdAt(java.time.LocalDateTime.now())
                                 .build()
                 ));
 
-        // 4) JWT 발급 (현 프로젝트 정책: loginId를 subject로 사용)
+        // 4) JWT 발급
         String accessToken  = jwtTokenProvider.createAccessToken(user.getUserId(), user.getLoginId());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(),user.getLoginId());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId(), user.getLoginId());
 
-        // 5) RefreshToken upsert
+        // 5) RT 저장/갱신
         refreshTokenRepository.findByLoginId(user.getLoginId())
                 .ifPresentOrElse(
                         rt -> rt.setToken(refreshToken),
@@ -81,8 +78,14 @@ public class KakaoAuthService {
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessExpSeconds())
-                .userId(String.valueOf(user.getUserId()))      // DB PK 반환 (long)
+                .userId(String.valueOf(user.getUserId()))
                 .name(user.getName())
                 .build();
+    }
+
+    private String stripBearer(String token) {
+        if (token == null) return "";
+        String t = token.trim();
+        return (t.regionMatches(true, 0, "Bearer ", 0, 7)) ? t.substring(7).trim() : t;
     }
 }
