@@ -38,17 +38,18 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 등록된 이메일입니다.");
         }
 
-        // 저장
-        Users user = userRepository.findByLoginId(req.getLoginId())
-         .orElseThrow(() -> new NotFoundException("user"));
+        // 새 엔티티 직접 생성
+        Users user = new Users();
         user.setLoginId(req.getLoginId());
         user.setPassword(passwordEncoder.encode(req.getPassword())); // 비밀번호 해시
         user.setName(req.getName());
         user.setEmail(req.getEmail());
         user.setCreatedAt(LocalDateTime.now());
 
-        Users saved = userRepository.save(user);
+        // 필요하다면 기본 권한 하드코딩
+        // user.setRole("ROLE_USER");
 
+        Users saved = userRepository.save(user);
         return UserResponseDto.from(saved);
     }
 
