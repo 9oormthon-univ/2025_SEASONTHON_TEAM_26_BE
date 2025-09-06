@@ -15,6 +15,7 @@ public class StopDetailResponseDto {
     private String name;
     private int dwellSeconds;       // 정차시간(초)
 
+
     // 신규/유지 필드
     private String regionName;      // 지역명
     private Integer etaToNextSec;   // 다음 정류장까지 ETA(초), null 가능

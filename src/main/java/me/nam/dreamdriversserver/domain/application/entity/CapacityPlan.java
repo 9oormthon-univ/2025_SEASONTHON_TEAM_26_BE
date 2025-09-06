@@ -3,6 +3,7 @@ package me.nam.dreamdriversserver.domain.application.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import me.nam.dreamdriversserver.domain.region.entity.Regions;
 
 import java.time.LocalDate;
 

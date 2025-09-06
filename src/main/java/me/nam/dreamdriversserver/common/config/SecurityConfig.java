@@ -1,17 +1,24 @@
 package me.nam.dreamdriversserver.common.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import me.nam.dreamdriversserver.common.jwt.JwtAuthenticationFilter;
 import me.nam.dreamdriversserver.common.jwt.JwtTokenProvider;
 import me.nam.dreamdriversserver.domain.user.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -24,24 +31,65 @@ public class SecurityConfig {
     ) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Swagger & 공개 경로 허용
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/auth/**",
-                                "/v3/api-docs/**", "/swagger-ui/**", "/docs/**"
+                                "/v3/api-docs/**", "/swagger-ui/**", "/docs/**",
+                                "/error"
                         ).permitAll()
-                        // 보호가 필요한 API는 인증 요구
-                        .requestMatchers("/applications/**", "/buses/**", "/timetables/**").authenticated()
+                        .requestMatchers(HttpMethod.GET,
+                                "/regions/search",
+                                "/timetables",
+                                "/applications/summary",
+                                "/buses/live",
+                                "/stops/nearest",
+                                "/map/overview"
+                        ).permitAll()
+                        .requestMatchers("/applications/**").authenticated()
                         .anyRequest().permitAll()
                 )
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(h -> h.disable())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"UNAUTHORIZED\"}");
+                        })
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            res.setContentType("application/json;charset=UTF-8");
+                            res.getWriter().write("{\"error\":\"FORBIDDEN\"}");
+                        })
+                );
 
-        http.addFilterBefore(new JwtAuthenticationFilter(tokenProvider, userRepository),
-                UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(
+                new JwtAuthenticationFilter(tokenProvider, userRepository),
+                UsernamePasswordAuthenticationFilter.class
+        );
 
         return http.build();
     }
 
-    @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    @Bean
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://localhost:5173"
+        ));
+        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
+        cfg.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", cfg);
+        return source;
+    }
 }

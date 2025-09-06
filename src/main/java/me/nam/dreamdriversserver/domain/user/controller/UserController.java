@@ -4,11 +4,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import me.nam.dreamdriversserver.domain.user.dto.LoginRequestDto;
-import me.nam.dreamdriversserver.domain.user.dto.LoginResponseDto;
-import me.nam.dreamdriversserver.domain.user.dto.RegisterRequestDto;
-import me.nam.dreamdriversserver.domain.user.dto.TokenRefreshRequestDto;
-import me.nam.dreamdriversserver.domain.user.dto.UserResponseDto;
+import me.nam.dreamdriversserver.domain.user.dto.*;
+import me.nam.dreamdriversserver.domain.user.service.KakaoAuthService;
 import me.nam.dreamdriversserver.domain.user.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final KakaoAuthService kakaoAuthService;
 
     @Operation(summary = "회원가입", description = "사용자의 정보를 받아 회원가입 처리")
     @PostMapping("/register")
@@ -37,7 +35,14 @@ public class UserController {
 
     @Operation(summary = "토큰 재발급", description = "Refresh Token을 검증하고 새로운 Access/Refresh 발급")
     @PostMapping("/token/refresh")
-    public ResponseEntity<LoginResponseDto> refresh(@Valid @RequestBody TokenRefreshRequestDto request) {
+    public ResponseEntity<TokenResponseDto> refresh(@Valid @RequestBody TokenRefreshRequestDto request) {
         return ResponseEntity.ok(userService.refresh(request.getRefreshToken()));
+    }
+
+    @PostMapping("/kakao")
+    @Operation(summary = "카카오 로그인", description = "카카오 인가 코드로 로그인/가입 처리 후 서비스 토큰 발급")
+    public ResponseEntity<KakaoLoginResponseDto> kakaoLogin(@Valid @RequestBody KakaoLoginRequestDto req) {
+        KakaoLoginResponseDto res = kakaoAuthService.loginWithCode(req.getCode());
+        return ResponseEntity.ok(res);
     }
 }

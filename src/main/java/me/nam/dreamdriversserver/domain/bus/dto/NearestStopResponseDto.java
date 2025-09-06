@@ -6,8 +6,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
+
  * GET /stops/nearest 200 응답 DTO 확장
  * - 사용자 위치(lat,lng)와 가장 가까운 정류장 정보 반환
+
  */
 @Getter
 @Setter
@@ -42,7 +44,7 @@ public class NearestStopResponseDto {
     /**
      * 사용자 현재 위치로부터 정류장까지의 거리(미터)
      * - Haversine 공식으로 계산한 직선 거리
-     * - 소수점 이하는 절삭/반올림 전략에 따라 정수 변환됨(현재 구현은 절삭)
+     * - 소수점 이하는 삭제/반올림 전략에 따라 정수 변환됨(현재 구현은 삭제)
      */
     private int distanceMeters;
 
@@ -69,7 +71,11 @@ public class NearestStopResponseDto {
     // 신규: 지역 정보 및 ETA(초)
     private Long regionId;       // 지역 ID
     private String regionName;   // 지역 이름
-    private Integer etaToNextSec; // 다음 도착 ETA(초), ���으면 null
+
+
+    private Integer etaToNextSec; // 다음 도착 ETA(초), 없으면 null
+
+
 
     public NearestStopResponseDto(Long stopId, String stopName, String nextArrivalTime, int dwellSeconds, int distanceMeters, double lat, double lng) {
         this.stopId = stopId;
