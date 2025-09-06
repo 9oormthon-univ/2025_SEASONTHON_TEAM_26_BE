@@ -54,6 +54,8 @@ dependencies {
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	implementation "io.netty:netty-resolver-dns-native-macos:4.1.114.Final:osx-aarch_64"
 }
 
 

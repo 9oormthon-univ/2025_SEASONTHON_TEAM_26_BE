@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -19,11 +20,15 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import org.slf4j.Logger;                    // ⬅ 추가
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping
 @Tag(name = "courses", description = "코스 실시간 API")
 public class BusLiveController {
+
+    private static final Logger log = LoggerFactory.getLogger(BusLiveController.class);
 
     private final BusLiveService busLiveService;
 
@@ -60,5 +65,15 @@ public class BusLiveController {
             body.put("message", "실시간 운행 정보 없음");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
         }
+    }
+    @PostMapping("/bus-live/ingest")
+    public ResponseEntity<?> ingest(@RequestBody Map<String, Object> payload) {
+        // payload 예시 키: busId, courseId, currentStopId, nextStopId, lat, lng, status, etaToNext, dwellSeconds
+        log.info("[INGEST] {}", payload);
+        // TODO: 여기서 In-Memory 캐시나 Redis로 upsert 하도록 확장 가능
+        Map<String, Object> body = new HashMap<>();
+        body.put("ok", true);
+        body.put("receivedAt", Instant.now().toString());
+        return ResponseEntity.ok(body);
     }
 }
