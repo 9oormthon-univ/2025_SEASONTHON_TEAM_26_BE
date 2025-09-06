@@ -17,12 +17,11 @@ spring:
         format_sql: true
         jdbc.time_zone: Asia/Seoul
 
-
 springdoc:
   swagger-ui:
-    path: /docs                  # Swagger UI ? http://localhost:8080/api/docs
+    path: /docs
   api-docs:
-    path: /v3/api-docs           # OpenAPI JSON
+    path: /v3/api-docs
 
 logging:
   level:
@@ -37,7 +36,7 @@ jwt:
 kakao:
   oauth:
     client-id: 028c043da80499d5f5a4091190738ab0
-    client-secret:   # 비워둬도 됨
+    client-secret:
     redirect-uri: kakao028c043da80499d5f5a4091190738ab0://oauth
     token-uri: https://kauth.kakao.com/oauth/token
     userinfo-uri: https://kapi.kakao.com/v2/user/me
@@ -46,9 +45,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: "health,info"
+        include: health,info
+      base-path: /actuator   # (기본값이지만 명시)
   endpoint:
     health:
       show-details: never
-  server:
-    base-path: /api/actuator  # 컨텍스트패스(/api) 안쪽으로 맞춤
