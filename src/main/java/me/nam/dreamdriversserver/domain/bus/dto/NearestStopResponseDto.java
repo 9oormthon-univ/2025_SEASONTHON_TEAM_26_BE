@@ -6,9 +6,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * GET /stops/nearest 200 응답 DTO
- * - 사용자 위치(lat,lng)와 regionId를 기준으로, 가장 가까운 정류장 정보를 반환합니다.
- * - 404의 경우 이 DTO가 아닌 { code, message } 에러 바디를 반환합니다.
+
+ * GET /stops/nearest 200 응답 DTO 확장
+ * - 사용자 위치(lat,lng)와 가장 가까운 정류장 정보 반환
+
  */
 @Getter
 @Setter
@@ -70,7 +71,10 @@ public class NearestStopResponseDto {
     // 신규: 지역 정보 및 ETA(초)
     private Long regionId;       // 지역 ID
     private String regionName;   // 지역 이름
+
+
     private Integer etaToNextSec; // 다음 도착 ETA(초), 없으면 null
+
 
 
     public NearestStopResponseDto(Long stopId, String stopName, String nextArrivalTime, int dwellSeconds, int distanceMeters, double lat, double lng) {
@@ -81,6 +85,6 @@ public class NearestStopResponseDto {
         this.distanceMeters = distanceMeters;
         this.userLat = lat;
         this.userLng = lng;
-        // stopLat/stopLng는 별도 설정 시 사용(기본값 0.0)
+        // stopLat/stopLng/region/eta는 별도 설정 시 사용
     }
 }
