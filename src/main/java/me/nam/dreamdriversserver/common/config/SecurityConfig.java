@@ -77,14 +77,20 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of(
+        cfg.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://127.0.0.1:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://*.ngrok-free.app",
+                "https://*.ngrok.app"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
+        // 응답 헤더 중 JS에서 접근이 필요한 것 노출(선택)
+        cfg.setExposedHeaders(List.of("Location","Authorization","Link"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
 
