@@ -1,24 +1,36 @@
-# ===== 1) Build stage: Gradle이 이미 들어있는 이미지 사용 =====
-FROM gradle:8.4-jdk17-alpine AS build
-# ↑ 프로젝트의 gradle-wrapper.properties와 호환되는 버전으로 맞추세요.
-#   (wrapper가 8.14.3라면 8.14.0+ 라인으로 올려도 됩니다: gradle:8.14.0-jdk17-alpine)
+# ===== 1) Build stage =====
+FROM --platform=$BUILDPLATFORM gradle:8.4-jdk17 AS build
 
-WORKDIR /workspace
-# 권한 이슈 방지 (선택)
-USER gradle
-COPY --chown=gradle:gradle . .
+# Gradle user home for caching
+ENV GRADLE_USER_HOME=/home/gradle/.gradle
+WORKDIR /home/gradle/app
 
-# 캐시 활용해서 의존성 빠르게 받도록 (alpine에서도 잘 동작)
-RUN gradle --no-daemon clean bootJar -x test
+# 1-1. Copy wrapper/metadata first to leverage cache
+COPY --chown=gradle:gradle gradle gradle
+COPY --chown=gradle:gradle gradlew .
+COPY --chown=gradle:gradle build.gradle settings.gradle ./
+RUN chmod +x gradlew
+
+# 1-2. Warm up dependencies cache (with a simple retry)
+RUN ./gradlew --no-daemon -Dorg.gradle.jvmargs="-Xmx1024m" \
+    -Dorg.gradle.internal.http.socketTimeout=60000 \
+    -Dorg.gradle.internal.http.connectionTimeout=60000 \
+    dependencies || ./gradlew --no-daemon dependencies
+
+# 1-3. Copy source and build
+COPY --chown=gradle:gradle src ./src
+RUN ./gradlew --no-daemon clean bootJar -x test
 
 # ===== 2) Runtime stage =====
-FROM eclipse-temurin:17-jre-alpine
-WORKDIR /app
-# build 결과 JAR 복사 (프로젝트명/버전에 맞춰 경로 확인)
-COPY --from=build /workspace/build/libs/*.jar /app/app.jar
+FROM --platform=$TARGETPLATFORM eclipse-temurin:17-jre
 
-# Render는 PORT 환경변수를 사용하지만, Spring이 8080에서 뜨면 안 됨.
-# 이미 application.yml에 server.port: 8080이 있으면 Render가 포트 바인딩을
-# 자동으로 못 찾을 수 있어요. 아래처럼 환경변수로 덮어쓰는 방식 권장.
-ENV SERVER_PORT=10000
-CMD ["sh", "-c", "java -jar -Dserver.port=${PORT:-$SERVER_PORT} /app/app.jar"]
+WORKDIR /app
+# Copy the built jar (adjust the wildcard if your jar name changes)
+COPY --from=build /home/gradle/app/build/libs/*-SNAPSHOT.jar /app/app.jar
+
+# Render will inject $PORT; bind Spring to it
+ENV JAVA_OPTS=""
+ENV PORT=10000
+EXPOSE 10000
+
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -Dserver.port=${PORT} -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-default} -jar /app/app.jar"]
