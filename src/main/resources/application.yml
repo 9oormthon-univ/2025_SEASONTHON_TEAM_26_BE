@@ -41,3 +41,14 @@ kakao:
     redirect-uri: kakao028c043da80499d5f5a4091190738ab0://oauth
     token-uri: https://kauth.kakao.com/oauth/token
     userinfo-uri: https://kapi.kakao.com/v2/user/me
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+  endpoint:
+    health:
+      show-details: never
+  server:
+    base-path: /api/actuator  # 컨텍스트패스(/api) 안쪽으로 맞춤
