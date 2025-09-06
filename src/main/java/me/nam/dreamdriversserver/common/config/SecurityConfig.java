@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/", "/actuator/**").permitAll()   // ★ 루트 & 액추에이터 전부 허용
                         .requestMatchers(
                                 "/auth/**",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/docs/**",
@@ -80,16 +81,11 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://*.ngrok-free.app",
-                "https://*.ngrok.app"
+                "*"
+                // 필요시 특정 도메인만 남기세요: "http://localhost:5173", "https://your-web.app" 등
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
-        // 응답 헤더 중 JS에서 접근이 필요한 것 노출(선택)
         cfg.setExposedHeaders(List.of("Location","Authorization","Link"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
