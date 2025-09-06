@@ -11,6 +11,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 public class KakaoOAuthClient {
@@ -41,6 +43,16 @@ public class KakaoOAuthClient {
     }
 
     public KakaoUserResponse getUser(String kakaoAccessToken) {
+        var temp = webClient.get()
+                .uri(userInfoUri)
+                .headers(h -> h.setBearerAuth(kakaoAccessToken))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+        System.out.println(temp
+        );
+
         return webClient.get()
                 .uri(userInfoUri)
                 .headers(h -> h.setBearerAuth(kakaoAccessToken))
