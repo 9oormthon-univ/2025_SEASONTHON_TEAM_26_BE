@@ -36,8 +36,8 @@ jwt:
 
 kakao:
   oauth:
-    client-id: 286f9a7db9f021a41a3209de91ce659c
+    client-id: 028c043da80499d5f5a4091190738ab0
     client-secret:   # 비워둬도 됨
-    redirect-uri: http://localhost:3000/oauth/kakao
+    redirect-uri: kakao028c043da80499d5f5a4091190738ab0://oauth
     token-uri: https://kauth.kakao.com/oauth/token
     userinfo-uri: https://kapi.kakao.com/v2/user/me
